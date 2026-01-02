@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "costco-cli"
+version = "0.1.0"
+description = "A terminal-based Costco shopping assistant powered by Claude and MCP"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "anthropic>=0.40.0",
+    "mcp>=1.0.0",
+    "httpx>=0.27.0",
+]
+
+[project.scripts]
+costco = "costco_cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["costco_cli"]
