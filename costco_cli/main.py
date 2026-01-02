@@ -474,7 +474,10 @@ async def run_interactive():
                 if persistent_agent and persistent_agent.is_connected():
                     console.print()
                     ui.show_status("Closing browser...", "info")
-                    await persistent_agent.stop()
+                    try:
+                        await persistent_agent.stop()
+                    except Exception:
+                        pass  # Suppress cleanup errors
                 console.print("\n[bold yellow]Thanks for shopping at Costco![/bold yellow]")
                 console.print("[dim]Come back soon for more warehouse savings![/dim]\n")
                 break
@@ -558,6 +561,12 @@ async def run_interactive():
             ui.show_status("Use 'exit' to quit", "info")
             continue
         except EOFError:
+            # Cleanup persistent agent if connected
+            if persistent_agent and persistent_agent.is_connected():
+                try:
+                    await persistent_agent.stop()
+                except Exception:
+                    pass  # Suppress cleanup errors
             console.print("\n[bold yellow]Goodbye![/bold yellow]\n")
             break
 
@@ -599,8 +608,8 @@ def main(ctx: typer.Context):
         try:
             asyncio.run(run_interactive())
         except KeyboardInterrupt:
-            # User pressed Ctrl+C - exit cleanly
-            console.print("\n[bold yellow]Goodbye![/bold yellow]\n")
+            # User pressed Ctrl+C - exit cleanly (already handled in run_interactive)
+            pass
         except (RuntimeError, ExceptionGroup) as e:
             # Suppress asyncio cleanup errors during shutdown
             if "cancel scope" not in str(e).lower():
