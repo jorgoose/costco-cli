@@ -193,10 +193,75 @@ def show_tool_call(tool_name: str, params: str = "", verbose: bool = True):
 
 
 def show_costco_loading(message: str = None):
-    """Show a Costco-themed loading message."""
+    """Show a Costco-themed loading message (single line, no animation)."""
     if message is None:
         message = get_loading_message()
     console.print(f"  [bold blue][CART][/bold blue] [cyan]{message}[/cyan]")
+
+
+def create_loading_display():
+    """Create an animated loading display that updates in place.
+    
+    Returns a context manager that can be used with 'with' statement.
+    Updates the display with rotating messages and animated dots.
+    """
+    from rich.live import Live
+    from rich.text import Text
+    import time
+    
+    class LoadingDisplay:
+        def __init__(self):
+            self.message_index = 0
+            self.dot_count = 0
+            self.live = None
+            self.last_update = time.time()
+            self.message_change_interval = 2.0  # Change message every 2 seconds
+            self.dot_interval = 0.5  # Change dots every 0.5 seconds
+            
+        def __enter__(self):
+            from rich.text import Text
+            initial_text = Text()
+            initial_text.append("  ", style="")
+            initial_text.append("[CART]", style="bold blue")
+            initial_text.append(" ", style="")
+            initial_text.append(COSTCO_LOADING_MESSAGES[0], style="cyan")
+            initial_text.append(".", style="cyan")
+            
+            self.live = Live(initial_text, console=console, refresh_per_second=4)
+            self.live.__enter__()
+            return self
+            
+        def __exit__(self, *args):
+            if self.live:
+                self.live.__exit__(*args)
+                
+        def update(self):
+            """Update the display with new message and/or dots."""
+            current_time = time.time()
+            
+            # Check if we should change the message
+            if current_time - self.last_update >= self.message_change_interval:
+                self.message_index = (self.message_index + 1) % len(COSTCO_LOADING_MESSAGES)
+                self.last_update = current_time
+                self.dot_count = 0
+            
+            # Animate dots (., .., ..., .)
+            dots_elapsed = current_time - self.last_update
+            self.dot_count = int((dots_elapsed / self.dot_interval) % 4)
+            dots = "." * (self.dot_count + 1) if self.dot_count < 3 else "."
+            
+            # Build the display text
+            text = Text()
+            text.append("  ", style="")
+            text.append("[CART]", style="bold blue")
+            text.append(" ", style="")
+            text.append(COSTCO_LOADING_MESSAGES[self.message_index], style="cyan")
+            text.append(dots + " " * (3 - len(dots)), style="cyan")  # Pad to keep width consistent
+            
+            if self.live:
+                self.live.update(text)
+    
+    return LoadingDisplay()
 
 def show_search_results(results: list[dict], has_more: bool = False):
     """Display search results in a formatted table."""

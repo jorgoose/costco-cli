@@ -248,76 +248,92 @@ class CostcoAgent:
 
         final_response = ""
         max_iterations = 20  # Safety limit
+        
+        # Create animated loading display for non-verbose mode
+        loading_display = None if self.verbose else ui.create_loading_display()
 
-        for iteration in range(max_iterations):
-            try:
-                if self.verbose:
-                    ui.show_status(f"Thinking... (step {iteration + 1})", "info")
-                else:
-                    ui.show_costco_loading()
-                response = self.client.messages.create(
-                    model="claude-haiku-4-5-20251001",
-                    max_tokens=4096,
-                    system=SYSTEM_PROMPT,
-                    tools=anthropic_tools,
-                    messages=self.conversation_history,
-                )
-            except Exception as e:
-                ui.show_status(f"API Error: {e}", "error")
-                raise
+        try:
+            if loading_display:
+                loading_display.__enter__()
+                
+            for iteration in range(max_iterations):
+                try:
+                    if self.verbose:
+                        ui.show_status(f"Thinking... (step {iteration + 1})", "info")
+                    elif loading_display:
+                        loading_display.update()
 
-            # Process the response
-            assistant_content = []
-            tool_results = []
+                    response = self.client.messages.create(
+                        model="claude-haiku-4-5-20251001",
+                        max_tokens=4096,
+                        system=SYSTEM_PROMPT,
+                        tools=anthropic_tools,
+                        messages=self.conversation_history,
+                    )
+                except Exception as e:
+                    ui.show_status(f"API Error: {e}", "error")
+                    raise
 
-            for block in response.content:
-                if block.type == "text":
-                    final_response = block.text
-                    assistant_content.append({"type": "text", "text": block.text})
-                    ui.show_agent_action("Response", block.text[:100] + "..." if len(block.text) > 100 else block.text, verbose=self.verbose)
+                # Process the response
+                assistant_content = []
+                tool_results = []
 
-                elif block.type == "tool_use":
-                    assistant_content.append({
-                        "type": "tool_use",
-                        "id": block.id,
-                        "name": block.name,
-                        "input": block.input,
-                    })
+                for block in response.content:
+                    if block.type == "text":
+                        final_response = block.text
+                        assistant_content.append({"type": "text", "text": block.text})
+                        ui.show_agent_action("Response", block.text[:100] + "..." if len(block.text) > 100 else block.text, verbose=self.verbose)
 
-                    # Execute the tool
-                    try:
-                        result = await self._call_tool(block.name, block.input)
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result,
-                        })
-                    except Exception as e:
-                        ui.show_status(f"Tool error: {e}", "warning")
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": f"Error: {str(e)}",
-                            "is_error": True,
+                    elif block.type == "tool_use":
+                        assistant_content.append({
+                            "type": "tool_use",
+                            "id": block.id,
+                            "name": block.name,
+                            "input": block.input,
                         })
 
-            # Add assistant response to history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": assistant_content,
-            })
+                        # Execute the tool
+                        try:
+                            result = await self._call_tool(block.name, block.input)
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": result,
+                            })
+                        except Exception as e:
+                            ui.show_status(f"Tool error: {e}", "warning")
+                            tool_results.append({
+                                "type": "tool_result",
+                                "tool_use_id": block.id,
+                                "content": f"Error: {str(e)}",
+                                "is_error": True,
+                            })
 
-            # If there were tool calls, add results and continue
-            if tool_results:
+                # Add assistant response to history
                 self.conversation_history.append({
-                    "role": "user",
-                    "content": tool_results,
+                    "role": "assistant",
+                    "content": assistant_content,
                 })
 
-            # Check if we should stop
-            if response.stop_reason == "end_turn":
-                break
+                # If there were tool calls, add results and continue
+                if tool_results:
+                    self.conversation_history.append({
+                        "role": "user",
+                        "content": tool_results,
+                    })
 
+                # Check if we should stop
+                if response.stop_reason == "end_turn":
+                    break
+
+        finally:
+            # Clean up loading display
+            if loading_display:
+                try:
+                    loading_display.__exit__(None, None, None)
+                except Exception:
+                    pass
+        
         return final_response
 
     def reset_conversation(self):
