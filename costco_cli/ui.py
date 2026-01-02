@@ -203,7 +203,7 @@ def create_loading_display():
     """Create an animated loading display that updates in place.
 
     Returns a context manager that can be used with 'with' statement.
-    Updates the display with rotating messages and animated dots.
+    Updates the display with rotating messages and an animated spinner.
     """
     from rich.live import Live
     from rich.text import Text
@@ -213,11 +213,9 @@ def create_loading_display():
     class LoadingDisplay:
         def __init__(self):
             self.message_index = 0
-            self.dot_count = 0
             self.live = None
             self.start_time = time.time()
             self.message_change_interval = 2.0  # Change message every 2 seconds
-            self.dot_interval = 0.5  # Change dots every 0.5 seconds
             self.running = False
             self.update_thread = None
 
@@ -231,7 +229,8 @@ def create_loading_display():
             initial_text.append("[CART]", style="bold blue")
             initial_text.append(" ", style="")
             initial_text.append(COSTCO_LOADING_MESSAGES[0], style="cyan")
-            initial_text.append(".   ", style="cyan")
+            initial_text.append(" ", style="")
+            initial_text.append("-", style="bold cyan")
 
             self.live = Live(initial_text, console=console, refresh_per_second=10)
             self.live.__enter__()
@@ -259,7 +258,7 @@ def create_loading_display():
                     pass  # Suppress errors in background thread
 
         def _update_display(self):
-            """Update the display with new message and/or dots."""
+            """Update the display with new message and spinner."""
             if not self.live or not self.running:
                 return
 
@@ -269,16 +268,10 @@ def create_loading_display():
             # Calculate which message to show (changes every 2 seconds)
             self.message_index = int(elapsed / self.message_change_interval) % len(COSTCO_LOADING_MESSAGES)
 
-            # Calculate dot animation (cycles through ., .., ..., . every 0.5 seconds)
-            dot_cycle_position = int((elapsed / self.dot_interval) % 4)
-            if dot_cycle_position == 0:
-                dots = ".   "
-            elif dot_cycle_position == 1:
-                dots = "..  "
-            elif dot_cycle_position == 2:
-                dots = "... "
-            else:  # dot_cycle_position == 3
-                dots = ".   "
+            # Calculate spinner animation (cycles through -, /, |, \ every 0.1 seconds)
+            spinner_chars = ['-', '/', '|', '\\']
+            spinner_position = int((elapsed / 0.1) % 4)
+            spinner = spinner_chars[spinner_position]
 
             # Build the display text
             text = Text()
@@ -286,7 +279,8 @@ def create_loading_display():
             text.append("[CART]", style="bold blue")
             text.append(" ", style="")
             text.append(COSTCO_LOADING_MESSAGES[self.message_index], style="cyan")
-            text.append(dots, style="cyan")
+            text.append(" ", style="")
+            text.append(spinner, style="bold cyan")
 
             self.live.update(text)
 
