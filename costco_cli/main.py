@@ -3,6 +3,7 @@
 import asyncio
 import os
 import sys
+import warnings
 from typing import Optional
 
 import typer
@@ -69,6 +70,46 @@ class SessionState:
 
 # Global session instance
 session = SessionState()
+
+def _suppress_asyncio_cleanup_errors():
+    """Suppress asyncio cleanup error output."""
+    import sys
+    
+    # Save original stderr
+    original_stderr = sys.stderr
+    
+    class SuppressCleanupErrors:
+        def __init__(self):
+            self.original = original_stderr
+            self.suppressing = False
+            
+        def write(self, text):
+            # Check if this is a cleanup error we want to suppress
+            if any(pattern in text.lower() for pattern in [
+                'cancel scope',
+                'unhandled exception during asyncio.run() shutdown',
+                'task finished',
+                'exception group',
+                'generatorexit'
+            ]):
+                self.suppressing = True
+                return
+            
+            # If we started suppressing, continue until we see a non-error line
+            if self.suppressing:
+                if text.strip() and not text.startswith(' '):
+                    self.suppressing = False
+                else:
+                    return
+                    
+            self.original.write(text)
+            
+        def flush(self):
+            self.original.flush()
+    
+    sys.stderr = SuppressCleanupErrors()
+
+
 
 
 def get_chrome_profile() -> str:
@@ -549,8 +590,21 @@ def handle_setup():
 def main(ctx: typer.Context):
     """Costco CLI - Your AI Shopping Assistant"""
     if ctx.invoked_subcommand is None:
+        # Suppress asyncio cleanup warnings and errors
+        warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*was never awaited.*")
+        warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*coroutine.*")
+        _suppress_asyncio_cleanup_errors()
+        
         # Launch interactive mode
-        asyncio.run(run_interactive())
+        try:
+            asyncio.run(run_interactive())
+        except KeyboardInterrupt:
+            # User pressed Ctrl+C - exit cleanly
+            console.print("\n[bold yellow]Goodbye![/bold yellow]\n")
+        except (RuntimeError, ExceptionGroup) as e:
+            # Suppress asyncio cleanup errors during shutdown
+            if "cancel scope" not in str(e).lower():
+                raise  # Re-raise if it's not the cleanup error
 
 
 @app.command()

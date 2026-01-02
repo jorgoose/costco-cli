@@ -139,8 +139,12 @@ class CostcoAgent:
             self.session = None
             ui.show_status("Browser disconnected", "success")
             
-        except Exception as e:
-            ui.show_status(f"Error disconnecting: {e}", "warning")
+        except (Exception, ExceptionGroup) as e:
+            # Suppress cleanup errors - they're not critical
+            self.session = None
+            # Only show error if verbose
+            if self.verbose:
+                ui.show_status(f"Error during cleanup (non-critical): {e}", "warning")
     
     def is_connected(self) -> bool:
         """Check if the agent is currently connected."""
