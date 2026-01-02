@@ -85,12 +85,12 @@ costco --help
 
 ## Usage
 
-### Interactive Mode
+### Interactive Mode (Default)
 
-Start the interactive shopping assistant:
+Start the interactive shopping assistant by simply running:
 
 ```bash
-costco interactive
+costco
 ```
 
 This opens a persistent session where you can use commands:
@@ -298,8 +298,8 @@ git clone https://github.com/yourusername/costco-cli.git
 cd costco-cli
 pip install -e .
 
-# Run directly
-python -m costco_cli.main interactive
+# Run directly (launches interactive mode)
+python -m costco_cli.main
 ```
 
 ### Adding New Commands

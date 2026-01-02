@@ -597,7 +597,11 @@ def handle_setup():
 
 @app.callback(invoke_without_command=True)
 def main(ctx: typer.Context):
-    """Costco CLI - Your AI Shopping Assistant"""
+    """Costco CLI - Your AI Shopping Assistant
+
+    Run 'costco' to start the interactive shopping assistant.
+    Run 'costco --help' to see available commands.
+    """
     if ctx.invoked_subcommand is None:
         # Suppress asyncio cleanup warnings and errors
         warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*was never awaited.*")
