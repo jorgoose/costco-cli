@@ -8,7 +8,8 @@
       "Bash(timeout 10 npx:*)",
       "Bash(ANTHROPIC_API_KEY=\"\" echo \"exit\")",
       "Bash(ANTHROPIC_API_KEY=\"\" python:*)",
-      "Bash(timeout 5 python:*)"
+      "Bash(timeout 5 python:*)",
+      "Bash(git restore:*)"
     ]
   }
 }

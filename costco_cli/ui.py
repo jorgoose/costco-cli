@@ -45,6 +45,32 @@ MEMBER_CARD = """[bold yellow]+-------------------------------------+
 
 SHOPPING_CART_ICON = "[bold yellow][CART][/bold yellow]"
 
+# Costco-themed loading messages
+COSTCO_LOADING_MESSAGES = [
+    "Scanning warehouse aisles...",
+    "Checking bulk inventory...",
+    "Calculating member savings...",
+    "Reviewing Kirkland Signature selection...",
+    "Accessing wholesale database...",
+    "Checking food court hot dog availability...",
+    "Verifying Executive Member benefits...",
+    "Inspecting product samples...",
+    "Calculating per-unit pricing...",
+    "Reviewing member-only deals...",
+    "Checking warehouse stock levels...",
+    "Scanning membership card...",
+]
+
+_loading_message_index = 0
+
+def get_loading_message() -> str:
+    """Get the next Costco-themed loading message."""
+    global _loading_message_index
+    message = COSTCO_LOADING_MESSAGES[_loading_message_index]
+    _loading_message_index = (_loading_message_index + 1) % len(COSTCO_LOADING_MESSAGES)
+    return message
+
+
 def clear_screen():
     """Clear the terminal screen."""
     console.clear()
@@ -146,19 +172,31 @@ def show_thinking(message: str = "Claude is thinking..."):
     )
 
 
-def show_agent_action(action: str, details: str = ""):
+def show_agent_action(action: str, details: str = "", verbose: bool = True):
     """Display an agent action in the terminal."""
+    if not verbose:
+        return
     console.print(f"  [bold cyan]>[/bold cyan] [white]{action}[/white]")
     if details:
         console.print(f"    [dim]{details}[/dim]")
 
 
-def show_tool_call(tool_name: str, params: str = ""):
+def show_tool_call(tool_name: str, params: str = "", verbose: bool = True):
     """Display a tool call being made."""
+    if not verbose:
+        return
     console.print(f"  [bold magenta]>>[/bold magenta] [magenta]{tool_name}[/magenta]")
     if params:
         console.print(f"    [dim]{params}[/dim]")
 
+
+
+
+def show_costco_loading(message: str = None):
+    """Show a Costco-themed loading message."""
+    if message is None:
+        message = get_loading_message()
+    console.print(f"  [bold blue][CART][/bold blue] [cyan]{message}[/cyan]")
 
 def show_search_results(results: list[dict], has_more: bool = False):
     """Display search results in a formatted table."""

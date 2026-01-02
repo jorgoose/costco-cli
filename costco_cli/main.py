@@ -37,6 +37,7 @@ class SessionState:
         self.current_page: int = 0
         self.page_size: int = 5
         self.last_query: str = ""
+        self.verbose_mode: bool = False  # Show agent details when True
 
     def has_results(self) -> bool:
         """Check if there are any search results."""
@@ -84,6 +85,7 @@ def show_help_menu():
 [bold white]Shopping Commands:[/bold white]
   [bold cyan]search[/bold cyan] [dim]<query>[/dim]     Search for products
   [bold cyan]add[/bold cyan] [dim]<number>[/dim]       Add item from search results to cart
+  [bold cyan]view[/bold cyan] [dim]<number>[/dim]      View product image/page in browser
   [bold cyan]more[/bold cyan]              Show more search results
   [bold cyan]cart[/bold cyan]              View your cart
   [bold cyan]checkout[/bold cyan]          Go to checkout
@@ -94,6 +96,7 @@ def show_help_menu():
 
 [bold white]Other Commands:[/bold white]
   [bold cyan]clear[/bold cyan]             Clear the screen
+  [bold cyan]verbose[/bold cyan]           Toggle detailed agent output
   [bold cyan]help[/bold cyan]              Show this menu
   [bold cyan]exit[/bold cyan] / [bold cyan]quit[/bold cyan]       Exit Costco CLI
 
@@ -161,6 +164,57 @@ async def handle_more():
 
     console.print(f"\n[bold cyan]Showing page {session.current_page + 1} of search results for:[/bold cyan] [white]{session.last_query}[/white]\n")
     ui.show_search_results(page_results, session.has_next_page())
+
+
+
+async def handle_view(item: str):
+    """Handle viewing product image/page in browser."""
+    import webbrowser
+    
+    if not item:
+        if session.has_results():
+            ui.show_status("Please specify an item number to view", "warning")
+            console.print("[dim]Example: view 1[/dim]")
+        else:
+            ui.show_status("Please search for products first.", "warning")
+            console.print("[dim]Example: search kirkland coffee[/dim]")
+        return
+
+    # Check if a search has been performed
+    if not session.has_results():
+        ui.show_status("Please search for products first.", "warning")
+        console.print("[dim]Example: search kirkland coffee[/dim]")
+        console.print("[dim]Then use: view <number>[/dim]")
+        return
+
+    # Check if item is a number (index into search results)
+    if item.isdigit():
+        item_index = int(item) - 1  # Convert to 0-indexed
+
+        if 0 <= item_index < len(session.search_results):
+            selected_item = session.search_results[item_index]
+            product_name = selected_item.get('name', 'Unknown')
+            
+            # Try to open image URL first, then product URL, then show error
+            image_url = selected_item.get('image_url')
+            product_url = selected_item.get('product_url')
+            
+            if image_url:
+                ui.show_status(f"Opening image for: {product_name}", "info")
+                webbrowser.open(image_url)
+                console.print("[dim]Image opened in your browser[/dim]")
+            elif product_url:
+                ui.show_status(f"Opening product page for: {product_name}", "info")
+                webbrowser.open(product_url)
+                console.print("[dim]Product page opened in your browser[/dim]")
+            else:
+                ui.show_status("No image or product URL available for this item", "warning")
+        else:
+            ui.show_status(f"Invalid item number. Please choose 1-{len(session.search_results)}", "warning")
+    else:
+        # User provided text instead of number
+        ui.show_status("Please use the item number from search results.", "warning")
+        console.print("[dim]Example: view 1[/dim]")
 
 
 async def handle_add(item: str, persistent_agent=None):
@@ -354,7 +408,7 @@ async def run_interactive():
         """Ensure the persistent agent is connected (lazy initialization)."""
         nonlocal persistent_agent
         if persistent_agent is None:
-            persistent_agent = agent.CostcoAgent(get_chrome_profile())
+            persistent_agent = agent.CostcoAgent(get_chrome_profile(), verbose=session.verbose_mode)
         if not persistent_agent.is_connected():
             await persistent_agent.start()
         return persistent_agent
@@ -362,7 +416,7 @@ async def run_interactive():
     while True:
         try:
             # Custom prompt
-            console.print("[bold red]COSTCO[/bold red] [bold blue]>[/bold blue] ", end="")
+            console.print("[bold red]Costco CLI[/bold red] [bold blue]>[/bold blue] ", end="")
             user_input = input().strip()
 
             if not user_input:
@@ -405,6 +459,10 @@ async def run_interactive():
                 await handle_more()
                 console.print()
 
+            elif command == "view":
+                await handle_view(args)
+                console.print()
+
             elif command == "add":
                 if not check_api_key():
                     console.print()
@@ -435,6 +493,15 @@ async def run_interactive():
 
             elif command == "apikey":
                 handle_apikey()
+                console.print()
+
+            elif command == "verbose":
+                session.verbose_mode = not session.verbose_mode
+                # Update existing agent's verbose flag if it exists
+                if persistent_agent:
+                    persistent_agent.verbose = session.verbose_mode
+                status = "enabled" if session.verbose_mode else "disabled"
+                ui.show_status(f"Verbose mode {status}", "success")
                 console.print()
 
             elif command == "setup":

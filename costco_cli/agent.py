@@ -58,7 +58,8 @@ IMPORTANT RULES:
 - Report what you find in a structured way
 
 When you find products, format them as JSON like:
-{"products": [{"name": "...", "price": "...", "unit": "..."}]}
+{"products": [{"name": "...", "price": "...", "unit": "...", "image_url": "...", "product_url": "..."}]}
+Include the image_url (product thumbnail/image) and product_url (link to product page) for each product.
 
 When viewing cart, format as JSON like:
 {"cart": [{"name": "...", "quantity": ..., "price": "..."}], "total": "..."}
@@ -69,7 +70,7 @@ NEVER click "Place Order" or complete a purchase automatically. Always stop at c
 class CostcoAgent:
     """Agent that orchestrates Claude and Playwright MCP for Costco shopping."""
 
-    def __init__(self, chrome_profile_path: str | None = None):
+    def __init__(self, chrome_profile_path: str | None = None, verbose: bool = False):
         # Get API key from config or environment
         api_key = config.get_api_key()
         self.client = Anthropic(api_key=api_key)
@@ -77,6 +78,7 @@ class CostcoAgent:
         self.session: ClientSession | None = None
         self.tools: list[dict] = []
         self.conversation_history: list[dict] = []
+        self.verbose = verbose
     async def start(self):
         """Start the persistent browser connection."""
         if self.session is not None:
@@ -207,7 +209,7 @@ class CostcoAgent:
         if not self.session:
             raise RuntimeError("Not connected to MCP server")
 
-        ui.show_tool_call(tool_name, json.dumps(tool_args, indent=2)[:100] + "...")
+        ui.show_tool_call(tool_name, json.dumps(tool_args, indent=2)[:100] + "...", verbose=self.verbose)
 
         result = await self.session.call_tool(tool_name, tool_args)
 
@@ -245,9 +247,12 @@ class CostcoAgent:
 
         for iteration in range(max_iterations):
             try:
-                ui.show_status(f"Thinking... (step {iteration + 1})", "info")
+                if self.verbose:
+                    ui.show_status(f"Thinking... (step {iteration + 1})", "info")
+                else:
+                    ui.show_costco_loading()
                 response = self.client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model="claude-haiku-4-5-20251001",
                     max_tokens=4096,
                     system=SYSTEM_PROMPT,
                     tools=anthropic_tools,
@@ -265,7 +270,7 @@ class CostcoAgent:
                 if block.type == "text":
                     final_response = block.text
                     assistant_content.append({"type": "text", "text": block.text})
-                    ui.show_agent_action("Response", block.text[:100] + "..." if len(block.text) > 100 else block.text)
+                    ui.show_agent_action("Response", block.text[:100] + "..." if len(block.text) > 100 else block.text, verbose=self.verbose)
 
                 elif block.type == "tool_use":
                     assistant_content.append({
