@@ -88,8 +88,6 @@ def show_boot_sequence():
     # Animated boot sequence
     boot_steps = [
         ("Scanning membership barcode", "green", "[OK]"),
-        ("Initializing Claude AI Engine", "cyan", "[OK]"),
-        ("Connecting to Playwright Browser", "magenta", "[OK]"),
         ("Loading warehouse inventory", "yellow", "[OK]"),
         ("Authenticating Kirkland Signature", "green", "[OK]"),
     ]
@@ -163,7 +161,7 @@ def show_status(message: str, status: str = "info"):
     console.print(f" {icon} [{color}]{message}[/{color}]")
 
 
-def show_thinking(message: str = "Claude is thinking..."):
+def show_thinking(message: str = "Processing your request..."):
     """Show a spinner while the agent is working."""
     return console.status(
         f"[bold red][CART][/bold red] [bold cyan]{message}[/bold cyan]",
