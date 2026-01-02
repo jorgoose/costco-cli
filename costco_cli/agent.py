@@ -260,8 +260,6 @@ class CostcoAgent:
                 try:
                     if self.verbose:
                         ui.show_status(f"Thinking... (step {iteration + 1})", "info")
-                    elif loading_display:
-                        loading_display.update()
 
                     response = self.client.messages.create(
                         model="claude-haiku-4-5-20251001",

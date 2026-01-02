@@ -201,66 +201,99 @@ def show_costco_loading(message: str = None):
 
 def create_loading_display():
     """Create an animated loading display that updates in place.
-    
+
     Returns a context manager that can be used with 'with' statement.
     Updates the display with rotating messages and animated dots.
     """
     from rich.live import Live
     from rich.text import Text
     import time
-    
+    import threading
+
     class LoadingDisplay:
         def __init__(self):
             self.message_index = 0
             self.dot_count = 0
             self.live = None
-            self.last_update = time.time()
+            self.start_time = time.time()
             self.message_change_interval = 2.0  # Change message every 2 seconds
             self.dot_interval = 0.5  # Change dots every 0.5 seconds
-            
+            self.running = False
+            self.update_thread = None
+
         def __enter__(self):
             from rich.text import Text
+            self.start_time = time.time()
+            self.running = True
+
             initial_text = Text()
             initial_text.append("  ", style="")
             initial_text.append("[CART]", style="bold blue")
             initial_text.append(" ", style="")
             initial_text.append(COSTCO_LOADING_MESSAGES[0], style="cyan")
-            initial_text.append(".", style="cyan")
-            
-            self.live = Live(initial_text, console=console, refresh_per_second=4)
+            initial_text.append(".   ", style="cyan")
+
+            self.live = Live(initial_text, console=console, refresh_per_second=10)
             self.live.__enter__()
+
+            # Start background thread to continuously update the display
+            self.update_thread = threading.Thread(target=self._continuous_update, daemon=True)
+            self.update_thread.start()
+
             return self
-            
+
         def __exit__(self, *args):
+            self.running = False
+            if self.update_thread:
+                self.update_thread.join(timeout=0.5)
             if self.live:
                 self.live.__exit__(*args)
-                
-        def update(self):
+
+        def _continuous_update(self):
+            """Background thread that continuously updates the display."""
+            while self.running:
+                try:
+                    self._update_display()
+                    time.sleep(0.1)  # Update 10 times per second
+                except Exception:
+                    pass  # Suppress errors in background thread
+
+        def _update_display(self):
             """Update the display with new message and/or dots."""
+            if not self.live or not self.running:
+                return
+
             current_time = time.time()
-            
-            # Check if we should change the message
-            if current_time - self.last_update >= self.message_change_interval:
-                self.message_index = (self.message_index + 1) % len(COSTCO_LOADING_MESSAGES)
-                self.last_update = current_time
-                self.dot_count = 0
-            
-            # Animate dots (., .., ..., .)
-            dots_elapsed = current_time - self.last_update
-            self.dot_count = int((dots_elapsed / self.dot_interval) % 4)
-            dots = "." * (self.dot_count + 1) if self.dot_count < 3 else "."
-            
+            elapsed = current_time - self.start_time
+
+            # Calculate which message to show (changes every 2 seconds)
+            self.message_index = int(elapsed / self.message_change_interval) % len(COSTCO_LOADING_MESSAGES)
+
+            # Calculate dot animation (cycles through ., .., ..., . every 0.5 seconds)
+            dot_cycle_position = int((elapsed / self.dot_interval) % 4)
+            if dot_cycle_position == 0:
+                dots = ".   "
+            elif dot_cycle_position == 1:
+                dots = "..  "
+            elif dot_cycle_position == 2:
+                dots = "... "
+            else:  # dot_cycle_position == 3
+                dots = ".   "
+
             # Build the display text
             text = Text()
             text.append("  ", style="")
             text.append("[CART]", style="bold blue")
             text.append(" ", style="")
             text.append(COSTCO_LOADING_MESSAGES[self.message_index], style="cyan")
-            text.append(dots + " " * (3 - len(dots)), style="cyan")  # Pad to keep width consistent
-            
-            if self.live:
-                self.live.update(text)
-    
+            text.append(dots, style="cyan")
+
+            self.live.update(text)
+
+        def update(self):
+            """Called by agent loop (but background thread handles actual updates)."""
+            pass  # No-op since background thread is handling updates
+
     return LoadingDisplay()
 
 def show_search_results(results: list[dict], has_more: bool = False):
