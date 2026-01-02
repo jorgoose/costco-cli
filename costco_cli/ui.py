@@ -289,8 +289,16 @@ def show_search_results(results: list[dict], has_more: bool = False):
 
     for i, item in enumerate(results, 1):
         price = item.get("price", "N/A")
-        if price != "N/A" and not price.startswith("$"):
-            price = f"${price}"
+
+        # Clean up price display for edge cases
+        if price != "N/A":
+            price_lower = price.lower()
+            # Handle "Warehouse pricing may vary" and similar cases
+            if "warehouse" in price_lower or "pricing may vary" in price_lower or "may vary" in price_lower:
+                price = "See in-store"
+            elif not price.startswith("$"):
+                price = f"${price}"
+
         table.add_row(
             str(i),
             item.get("name", "Unknown"),
@@ -335,8 +343,16 @@ def show_cart(items: list[dict], total: str = ""):
 
     for item in items:
         price = item.get("price", "N/A")
-        if price != "N/A" and not price.startswith("$"):
-            price = f"${price}"
+
+        # Clean up price display for edge cases
+        if price != "N/A":
+            price_lower = price.lower()
+            # Handle "Warehouse pricing may vary" and similar cases
+            if "warehouse" in price_lower or "pricing may vary" in price_lower or "may vary" in price_lower:
+                price = "See in-store"
+            elif not price.startswith("$"):
+                price = f"${price}"
+
         table.add_row(
             item.get("name", "Unknown"),
             str(item.get("quantity", 1)),
