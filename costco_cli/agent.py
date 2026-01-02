@@ -245,6 +245,9 @@ class CostcoAgent:
             "content": user_message,
         })
 
+        # Check and compact conversation history if needed
+        self._compact_conversation_history(max_tokens=150000)
+
         # Convert MCP tools to Anthropic format
         anthropic_tools = [
             {
@@ -257,7 +260,7 @@ class CostcoAgent:
 
         final_response = ""
         max_iterations = 20  # Safety limit
-        
+
         # Create animated loading display for non-verbose mode
         loading_display = None if self.verbose else ui.create_loading_display()
 
@@ -346,6 +349,66 @@ class CostcoAgent:
     def reset_conversation(self):
         """Clear conversation history for a fresh start."""
         self.conversation_history = []
+
+    def _estimate_tokens(self) -> int:
+        """Rough estimate of token count in conversation history."""
+        # Rough estimate: ~4 characters per token
+        total_chars = 0
+        for message in self.conversation_history:
+            if isinstance(message.get("content"), str):
+                total_chars += len(message["content"])
+            elif isinstance(message.get("content"), list):
+                for block in message["content"]:
+                    if isinstance(block, dict):
+                        if "text" in block:
+                            total_chars += len(block["text"])
+                        if "content" in block:
+                            total_chars += len(str(block["content"]))
+        return total_chars // 4
+
+    def _compact_conversation_history(self, max_tokens: int = 150000):
+        """Compact conversation history using Claude to summarize when too large.
+
+        Uses Claude to create a summary of the conversation, preserving important context.
+        """
+        estimated_tokens = self._estimate_tokens()
+
+        if estimated_tokens > max_tokens:
+            if self.verbose:
+                ui.show_status(f"Compacting conversation history ({estimated_tokens} tokens)...", "info")
+
+            try:
+                # Build a summary of the conversation using Claude
+                summary_prompt = (
+                    "Summarize the following Costco shopping session conversation history. "
+                    "Include: what products were searched for, what was added to cart, and current cart state. "
+                    "Keep it concise but preserve all important information.\n\n"
+                    f"Conversation: {str(self.conversation_history)}"
+                )
+
+                # Call Claude to create summary (without tools, just text)
+                response = self.client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=2000,
+                    messages=[{"role": "user", "content": summary_prompt}]
+                )
+
+                summary = response.content[0].text if response.content else "Shopping session in progress."
+
+                # Replace conversation history with summary
+                self.conversation_history = [
+                    {"role": "user", "content": "Previous session summary: " + summary}
+                ]
+
+                if self.verbose:
+                    ui.show_status(f"Conversation compacted to {self._estimate_tokens()} tokens", "info")
+
+            except Exception as e:
+                # Fallback to simple trimming if compaction fails
+                if self.verbose:
+                    ui.show_status(f"Compaction failed, trimming instead: {e}", "warning")
+                keep_count = max(1, len(self.conversation_history) // 3)
+                self.conversation_history = self.conversation_history[-keep_count:]
 
 
 async def search_products(query: str, chrome_profile: str | None = None, agent: CostcoAgent | None = None) -> list[dict]:

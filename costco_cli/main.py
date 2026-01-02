@@ -138,6 +138,7 @@ def show_help_menu():
 
 [bold white]Other Commands:[/bold white]
   [bold cyan]clear[/bold cyan]             Clear the screen
+  [bold cyan]reset[/bold cyan]             Clear conversation history
   [bold cyan]verbose[/bold cyan]           Toggle detailed agent output
   [bold cyan]help[/bold cyan]              Show this menu
   [bold cyan]exit[/bold cyan] / [bold cyan]quit[/bold cyan]       Exit Costco CLI
@@ -493,6 +494,15 @@ async def run_interactive(headless: bool = True):
             elif command == "clear":
                 ui.clear_screen()
                 console.print("[bold red]COSTCO CLI[/bold red] [dim]- Type 'help' for commands[/dim]\n")
+
+            elif command == "reset":
+                # Reset conversation history
+                if persistent_agent and persistent_agent.is_connected():
+                    persistent_agent.reset_conversation()
+                    ui.show_status("Conversation history cleared", "info")
+                else:
+                    ui.show_status("No active agent to reset", "warning")
+                console.print()
 
             elif command == "search":
                 if not check_api_key():
