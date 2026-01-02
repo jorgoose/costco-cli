@@ -88,7 +88,9 @@ def show_boot_sequence():
     # Animated boot sequence
     boot_steps = [
         ("Scanning membership barcode", "green", "[OK]"),
-        ("Loading warehouse inventory", "yellow", "[OK]"),
+        ("Checking food court hot dog supply ($1.50!)", "yellow", "[OK]"),
+        ("Loading warehouse inventory", "cyan", "[OK]"),
+        ("Verifying rotisserie chicken temperature", "yellow", "[OK]"),
         ("Authenticating Kirkland Signature", "green", "[OK]"),
     ]
 
@@ -330,6 +332,7 @@ def show_welcome_tip():
         "[TIP] Members save an average of $1,000+ per year shopping at Costco!",
         "[TIP] Executive Members earn 2% annual reward on qualified purchases!",
         "[TIP] Costco's return policy is legendary - satisfaction guaranteed!",
+        "[TIP] With the Costco app, you can check Costco Gas Station prices on your phone!",
     ]
     console.print(f"\n[dim]{random.choice(tips)}[/dim]\n")
 
