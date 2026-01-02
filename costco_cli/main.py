@@ -33,12 +33,13 @@ DEFAULT_CHROME_PROFILE = os.environ.get(
 # Session state to track search results
 class SessionState:
     """Tracks the current session state for search results."""
-    def __init__(self):
+    def __init__(self, headless: bool = True):
         self.search_results: list[dict] = []
         self.current_page: int = 0
         self.page_size: int = 5
         self.last_query: str = ""
         self.verbose_mode: bool = False  # Show agent details when True
+        self.headless: bool = headless  # Run browser in headless mode
 
     def has_results(self) -> bool:
         """Check if there are any search results."""
@@ -432,8 +433,12 @@ def handle_apikey():
         ui.show_status("No API key entered.", "warning")
 
 
-async def run_interactive():
+async def run_interactive(headless: bool = True):
     """Run the interactive CLI loop."""
+    # Update global session with headless setting
+    global session
+    session.headless = headless
+
     ui.show_boot_sequence()
 
     # Show API key warning if not set, but don't exit
@@ -449,7 +454,7 @@ async def run_interactive():
         """Ensure the persistent agent is connected (lazy initialization)."""
         nonlocal persistent_agent
         if persistent_agent is None:
-            persistent_agent = agent.CostcoAgent(get_chrome_profile(), verbose=session.verbose_mode)
+            persistent_agent = agent.CostcoAgent(get_chrome_profile(), verbose=session.verbose_mode, headless=session.headless)
         if not persistent_agent.is_connected():
             await persistent_agent.start()
         return persistent_agent
@@ -596,7 +601,14 @@ def handle_setup():
 
 
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
+def main(
+    ctx: typer.Context,
+    show_browser: bool = typer.Option(
+        False,
+        "--show-browser",
+        help="Show browser window (disabled by default for headless mode)"
+    )
+):
     """Costco CLI - Your AI Shopping Assistant
 
     Run 'costco' to start the interactive shopping assistant.
@@ -607,10 +619,11 @@ def main(ctx: typer.Context):
         warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*was never awaited.*")
         warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*coroutine.*")
         _suppress_asyncio_cleanup_errors()
-        
+
         # Launch interactive mode
+        headless = not show_browser  # Invert flag: --show-browser means headless=False
         try:
-            asyncio.run(run_interactive())
+            asyncio.run(run_interactive(headless=headless))
         except KeyboardInterrupt:
             # User pressed Ctrl+C - exit cleanly (already handled in run_interactive)
             pass

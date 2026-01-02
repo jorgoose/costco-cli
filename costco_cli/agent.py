@@ -70,7 +70,7 @@ NEVER click "Place Order" or complete a purchase automatically. Always stop at c
 class CostcoAgent:
     """Agent that orchestrates Claude and Playwright MCP for Costco shopping."""
 
-    def __init__(self, chrome_profile_path: str | None = None, verbose: bool = False):
+    def __init__(self, chrome_profile_path: str | None = None, verbose: bool = False, headless: bool = True):
         # Get API key from config or environment
         api_key = config.get_api_key()
         self.client = Anthropic(api_key=api_key)
@@ -79,6 +79,7 @@ class CostcoAgent:
         self.tools: list[dict] = []
         self.conversation_history: list[dict] = []
         self.verbose = verbose
+        self.headless = headless
     async def start(self):
         """Start the persistent browser connection."""
         if self.session is not None:
@@ -159,9 +160,17 @@ class CostcoAgent:
         if self.chrome_profile_path:
             args.extend(["--user-data-dir", self.chrome_profile_path])
 
+        # Set environment variables for headless mode
+        env = os.environ.copy()
+        if self.headless:
+            env["PLAYWRIGHT_HEADLESS"] = "true"
+        else:
+            env["PLAYWRIGHT_HEADLESS"] = "false"
+
         return StdioServerParameters(
             command=get_npx_command(),
             args=args,
+            env=env,
         )
 
     @asynccontextmanager
@@ -424,19 +433,35 @@ async def view_cart(chrome_profile: str | None = None, agent: CostcoAgent | None
 
     async def _view(agent):
         response = await agent.run(
-            "Navigate to the Costco.com cart page and list all items with quantities and prices. "
-            "Also provide the estimated total. Format as JSON."
+            "Navigate to the Costco.com cart page and extract ALL items with their details. "
+            "For each item, extract: name (product name), quantity (number of items), and price (item price). "
+            "Also get the cart total. "
+            "Return ONLY valid JSON in this exact format: "
+            '{"cart": [{"name": "Product Name", "quantity": 1, "price": "19.99"}], "total": "19.99"}'
         )
 
         # Try to extract JSON from response
         try:
             import re
-            json_match = re.search(r'\{.*"cart".*\}', response, re.DOTALL)
+            # Try to find JSON block in the response
+            json_match = re.search(r'\{.*?"cart".*?\[.*?\].*?\}', response, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())
-                return data.get("cart", []), data.get("total", "")
-        except (json.JSONDecodeError, AttributeError):
-            pass
+                cart_items = data.get("cart", [])
+
+                # Validate that cart items have required fields
+                validated_items = []
+                for item in cart_items:
+                    if isinstance(item, dict) and "name" in item:
+                        validated_items.append({
+                            "name": item.get("name", "Unknown Product"),
+                            "quantity": item.get("quantity", 1),
+                            "price": item.get("price", "N/A")
+                        })
+
+                return validated_items, data.get("total", "")
+        except (json.JSONDecodeError, AttributeError, TypeError) as e:
+            ui.show_status(f"Failed to parse cart data: {e}", "warning")
 
         return [], ""
     

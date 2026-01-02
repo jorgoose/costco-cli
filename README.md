@@ -47,7 +47,8 @@ The [Playwright MCP Server](https://github.com/anthropics/mcp-servers/tree/main/
 
 ### User Experience
 - **Costco-Themed UI** - Rich terminal interface with Costco branding and colors
-- **Animated Loading** - Fun Costco-themed loading messages ("Scanning warehouse aisles...", "Checking bulk inventory...")
+- **Animated Loading** - Fun Costco-themed loading messages with spinner ("Scanning warehouse aisles... |")
+- **Headless Browser** - Browser runs invisibly in the background (no windows popping up)
 - **Persistent Browser** - Browser stays open between commands for faster interactions
 - **Verbose Mode** - Toggle technical details on/off with `verbose` command
 - **Chrome Profile Support** - Use a persistent Chrome profile to stay logged in
@@ -71,8 +72,10 @@ The [Playwright MCP Server](https://github.com/anthropics/mcp-servers/tree/main/
 git clone https://github.com/yourusername/costco-cli.git
 cd costco-cli
 
-# Install Python dependencies
+# Install the CLI package in editable mode
 pip install -e .
+
+# This creates the 'costco' command that you can run from anywhere
 
 # Set your API key (add to ~/.bashrc or ~/.zshrc for persistence)
 export ANTHROPIC_API_KEY="your-api-key-here"
@@ -91,6 +94,12 @@ Start the interactive shopping assistant by simply running:
 
 ```bash
 costco
+```
+
+By default, the browser runs in headless mode (invisible). To see the browser window for debugging:
+
+```bash
+costco --show-browser
 ```
 
 This opens a persistent session where you can use commands:
@@ -206,7 +215,7 @@ Settings are stored in `~/.costco/config.json`:
        ▼
 ┌─────────────────────────┐
 │   Chromium Browser      │  Loads Costco.com
-│   (Headless/Visible)    │  Performs actions
+│   (Headless Mode)       │  Performs actions
 └─────────────────────────┘
 ```
 
@@ -280,9 +289,11 @@ A typical shopping session (5-10 searches, adding items, viewing cart) costs app
 - Get a new key from https://console.anthropic.com/
 
 ### Browser doesn't open / can't see browser
-- The browser runs in headless mode by default
+- This is expected! The browser runs in headless mode (invisible in the background)
+- You won't see any browser windows - all output appears in the terminal
+- To see the browser for debugging, use: `costco --show-browser`
 - Playwright will install Chromium automatically on first run
-- If issues persist, try: `npx playwright install chromium`
+- If the browser automation fails, try: `npx playwright install chromium`
 
 ### "Warehouse pricing may vary" shows in results
 - This is expected for some products - pricing is only available in-store
