@@ -156,21 +156,24 @@ class CostcoAgent:
         """Get the MCP server parameters for Playwright."""
         args = ["-y", "@playwright/mcp@latest"]
 
+        # Add headless mode with stealth options to avoid detection
+        if self.headless:
+            args.append("--headless")
+            # Use a realistic user agent to avoid headless detection
+            args.extend([
+                "--user-agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            ])
+            # Set realistic viewport size
+            args.extend(["--viewport-size", "1920x1080"])
+
         # Add Chrome profile if specified for persistent login
         if self.chrome_profile_path:
             args.extend(["--user-data-dir", self.chrome_profile_path])
 
-        # Set environment variables for headless mode
-        env = os.environ.copy()
-        if self.headless:
-            env["PLAYWRIGHT_HEADLESS"] = "true"
-        else:
-            env["PLAYWRIGHT_HEADLESS"] = "false"
-
         return StdioServerParameters(
             command=get_npx_command(),
             args=args,
-            env=env,
         )
 
     @asynccontextmanager

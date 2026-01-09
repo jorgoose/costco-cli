@@ -9,7 +9,8 @@
       "Bash(ANTHROPIC_API_KEY=\"\" echo \"exit\")",
       "Bash(ANTHROPIC_API_KEY=\"\" python:*)",
       "Bash(timeout 5 python:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "WebSearch"
     ]
   }
 }
